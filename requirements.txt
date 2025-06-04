@@ -1,3 +1,4 @@
+wheel
 dnspython>=1.14.0
 requests>=2.20.0
 ppdeep>=20200505
