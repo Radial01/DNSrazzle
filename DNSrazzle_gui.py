@@ -162,9 +162,13 @@ class DNSRazzleGUI(tk.Tk):
             self.output_text.update_idletasks()
 
         def read_output(proc):
-            for line in proc.stdout:
-                # Tkinter is not thread safe; queue UI updates on the main thread
-                self.output_text.after(0, _append_output, line)
+            while True:
+                chunk = proc.stdout.read(1)
+                if chunk == "" and proc.poll() is not None:
+                    break
+                if chunk:
+                    # Tkinter is not thread safe; queue UI updates on the main thread
+                    self.output_text.after(0, _append_output, chunk)
             proc.wait()
             # Update status when process finishes
             self.output_text.after(0, self.status_var.set, "Done")
