@@ -181,7 +181,6 @@ def screenshot_domain(driver, domain, out_dir, retries=1):
                 time.sleep(1)
             except WebDriverException:
                 pass
-
             driver.get_screenshot_as_file(ss_path)
             return True
 
