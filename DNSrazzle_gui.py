@@ -80,7 +80,7 @@ class DNSRazzleGUI(tk.Tk):
             self.out_var.set(dirname)
 
     def run_dnsrazzle(self):
-        args = [sys.executable, os.path.join(os.path.dirname(__file__), "DNSrazzle.py")]
+        args = [sys.executable, "-u", os.path.join(os.path.dirname(__file__), "DNSrazzle.py")]
         if self.domain_var.get():
             args += ["-d", self.domain_var.get()]
         if self.file_var.get():
@@ -126,8 +126,15 @@ class DNSRazzleGUI(tk.Tk):
             # Update status when process finishes
             self.output_text.after(0, self.status_var.set, "Done")
 
+        def check_process():
+            if proc.poll() is None:
+                self.after(1000, check_process)
+            else:
+                self.status_var.set("Done")
+
         proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         threading.Thread(target=read_output, args=(proc,), daemon=True).start()
+        self.after(1000, check_process)
 
 
 def main():
