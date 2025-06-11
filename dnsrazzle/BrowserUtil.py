@@ -169,7 +169,6 @@ def screenshot_domain(driver, domain, out_dir, retries=1):
             except TimeoutException:
                 pass
 
-
             driver.get_screenshot_as_file(ss_path)
             return True
 
