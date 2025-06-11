@@ -106,10 +106,14 @@ class DNSRazzleGUI(tk.Tk):
 
         self.output_text.delete(1.0, tk.END)
 
+        def _append_output(line):
+            self.output_text.insert(tk.END, line)
+            self.output_text.see(tk.END)
+
         def read_output(proc):
             for line in proc.stdout:
-                self.output_text.insert(tk.END, line)
-                self.output_text.see(tk.END)
+                # Tkinter is not thread safe; queue UI updates on the main thread
+                self.output_text.after(0, _append_output, line)
             proc.wait()
 
         proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
