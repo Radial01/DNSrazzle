@@ -12,6 +12,10 @@ class DNSRazzleGUI(tk.Tk):
         self.title("DNSRazzle GUI")
         self.geometry("700x500")
         self.create_widgets()
+        self.screenshot_win = None
+        self.screenshot_frame = None
+        self.screenshot_images = []
+        self.displayed_files = set()
 
     def create_widgets(self):
         frm = ttk.Frame(self)
@@ -79,6 +83,43 @@ class DNSRazzleGUI(tk.Tk):
         if dirname:
             self.out_var.set(dirname)
 
+    def show_screenshot_window(self):
+        if self.screenshot_win and self.screenshot_win.winfo_exists():
+            return
+        self.screenshot_win = tk.Toplevel(self)
+        self.screenshot_win.title("Screenshots")
+        canvas = tk.Canvas(self.screenshot_win)
+        scrollbar = ttk.Scrollbar(self.screenshot_win, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.screenshot_frame = ttk.Frame(canvas)
+        canvas.create_window((0, 0), window=self.screenshot_frame, anchor="nw")
+        self.screenshot_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        self.after(1000, self.update_screenshots)
+
+    def update_screenshots(self):
+        if not (self.screenshot_win and self.screenshot_win.winfo_exists()):
+            return
+        ss_dir = os.path.join(self.out_var.get(), "screenshots")
+        if os.path.isdir(ss_dir):
+            for fname in sorted(os.listdir(ss_dir)):
+                if fname.endswith(".png") and fname not in self.displayed_files:
+                    path = os.path.join(ss_dir, fname)
+                    try:
+                        img = tk.PhotoImage(file=path)
+                    except tk.TclError:
+                        continue
+                    lbl = ttk.Label(self.screenshot_frame, image=img, text=fname, compound="top")
+                    lbl.image = img
+                    lbl.pack(padx=5, pady=5)
+                    self.screenshot_images.append(img)
+                    self.displayed_files.add(fname)
+        self.after(2000, self.update_screenshots)
+
     def run_dnsrazzle(self):
         args = [sys.executable, "-u", os.path.join(os.path.dirname(__file__), "DNSrazzle.py")]
         if self.domain_var.get():
@@ -111,15 +152,17 @@ class DNSRazzleGUI(tk.Tk):
 
         # Update status indicator
         self.status_var.set("Running...")
+        self.show_screenshot_window()
 
         self.output_text.delete(1.0, tk.END)
 
         def _append_output(line):
             self.output_text.insert(tk.END, line)
             self.output_text.see(tk.END)
+            self.output_text.update_idletasks()
 
         def read_output(proc):
-            for line in iter(proc.stdout.readline, ""):
+            for line in proc.stdout:
                 # Tkinter is not thread safe; queue UI updates on the main thread
                 self.output_text.after(0, _append_output, line)
             proc.wait()
