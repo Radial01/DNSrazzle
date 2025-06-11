@@ -57,6 +57,10 @@ def compare_screenshots(imageA, imageB):
         # load the two input images
         image_A = cv2.imread(imageA)
         image_B = cv2.imread(imageB)
+
+        if image_A is None or image_B is None:
+            return None
+
         # convert the images to grayscale
         grayA = cv2.cvtColor(image_A, cv2.COLOR_BGR2GRAY)
         grayB = cv2.cvtColor(image_B, cv2.COLOR_BGR2GRAY)
