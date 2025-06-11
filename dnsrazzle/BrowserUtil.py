@@ -36,7 +36,7 @@ __twitter__ = '@securityshrimp'
 __email__ = 'securityshrimp@proton.me'
 
 from .IOUtil import print_debug, print_error
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, TimeoutException
 from fake_useragent import UserAgent
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -44,6 +44,7 @@ from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from selenium.webdriver.support.ui import WebDriverWait
 import selenium
 import tempfile
 import os
@@ -154,6 +155,21 @@ def screenshot_domain(driver, domain, out_dir, retries=1):
         try:
             driver.set_page_load_timeout(15)
             driver.get(url)
+            WebDriverWait(driver, 10).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+
+            # Wait a bit longer for images or async content to finish loading
+            try:
+                WebDriverWait(driver, 5).until(
+                    lambda d: d.execute_script(
+                        "return Array.from(document.images).every(img => img.complete)"
+                    )
+                )
+            except TimeoutException:
+                pass
+
+
             driver.get_screenshot_as_file(ss_path)
             return True
 
