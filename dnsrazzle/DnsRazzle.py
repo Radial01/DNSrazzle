@@ -112,7 +112,7 @@ class DnsRazzle():
             worker.join()
 
     def check_domains(self, progress_callback=None):
-        success = screenshot_domain(driver=self.driver, domain=self.domain, out_dir=self.out_dir + '/screenshots/originals/')
+        success = screenshot_domain(driver=self.driver, domain=self.domain, out_dir=self.out_dir + '/screenshots/originals/', width=1920, height=1080)
         # if not success:
         #     # The original domain could not be screenshotted, therefore it is
         #     # impossible to do a comparison with any of its variations.
@@ -123,7 +123,7 @@ class DnsRazzle():
         return True
 
     def check_domain(self, domain_entry, progress_callback=None):
-        success = screenshot_domain(driver=self.driver, domain=domain_entry['domain-name'], out_dir=self.out_dir + '/screenshots/')
+        success = screenshot_domain(driver=self.driver, domain=domain_entry['domain-name'], out_dir=self.out_dir + '/screenshots/', width=1920, height=1080)
         if success:
             original_png = self.out_dir + '/screenshots/originals/' + self.domain + '.png'
             if Path(original_png).is_file():

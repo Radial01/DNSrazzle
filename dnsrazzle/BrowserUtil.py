@@ -132,7 +132,7 @@ def get_webdriver(browser_name):
             shutil.rmtree(temp_profile, ignore_errors=True)
         return None
 
-def screenshot_domain(driver, domain, out_dir, retries=1):
+def screenshot_domain(driver, domain, out_dir, retries=1, width=1920, height=1080):
     """
     Function to take screenshot of supplied domain.
     It retries if a known error occurs (e.g. timeout or renderer issues).
@@ -150,6 +150,17 @@ def screenshot_domain(driver, domain, out_dir, retries=1):
         "net::err_address_unreachable", 
         "net::err_"
     ]
+
+    if width is None or height is None:
+        try:
+            size = driver.get_window_size()
+            if width is None:
+                width = size.get("width", 1920)
+            if height is None:
+                height = size.get("height", 1080)
+        except WebDriverException:
+            width = width or 1920
+            height = height or 1080
 
     for attempt in range(retries + 1):
         try:
@@ -170,14 +181,7 @@ def screenshot_domain(driver, domain, out_dir, retries=1):
                 pass
 
             try:
-                # Resize the browser to match the full page height/width
-                page_height = driver.execute_script(
-                    "return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);"
-                )
-                page_width = driver.execute_script(
-                    "return Math.max(document.body.scrollWidth, document.documentElement.scrollWidth);"
-                )
-                driver.set_window_size(page_width, page_height)
+                driver.set_window_size(width, height)
                 time.sleep(1)
             except WebDriverException:
                 pass
