@@ -119,7 +119,7 @@ class DNSRazzleGUI(tk.Tk):
             self.output_text.see(tk.END)
 
         def read_output(proc):
-            for line in proc.stdout:
+            for line in iter(proc.stdout.readline, ""):
                 # Tkinter is not thread safe; queue UI updates on the main thread
                 self.output_text.after(0, _append_output, line)
             proc.wait()
@@ -132,7 +132,13 @@ class DNSRazzleGUI(tk.Tk):
             else:
                 self.status_var.set("Done")
 
-        proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        proc = subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
         threading.Thread(target=read_output, args=(proc,), daemon=True).start()
         self.after(1000, check_process)
 
