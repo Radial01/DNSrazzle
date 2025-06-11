@@ -42,7 +42,9 @@ import queue
 from pathlib import Path
 
 class DnsRazzle():
-    def __init__(self, domain, out_dir, tld, dictionary, file, useragent, debug, threads, nmap, recon, driver, nameserver = '1.1.1.1'):
+    def __init__(self, domain, out_dir, tld, dictionary, file, useragent, debug,
+                 threads, nmap, recon, driver, nameserver='1.1.1.1',
+                 screenshot_delay=2):
         self.domains = []
         self.domain = domain
         self.out_dir = out_dir
@@ -59,6 +61,7 @@ class DnsRazzle():
         self.recon = recon
         self.nameserver = nameserver
         self.driver = driver
+        self.screenshot_delay = screenshot_delay
 
     def generate_fuzzed_domains(self):
         from dnstwist import DomainFuzz
@@ -112,7 +115,10 @@ class DnsRazzle():
             worker.join()
 
     def check_domains(self, progress_callback=None):
-        success = screenshot_domain(driver=self.driver, domain=self.domain, out_dir=self.out_dir + '/screenshots/originals/', width=1920, height=1080)
+        success = screenshot_domain(driver=self.driver, domain=self.domain,
+                                   out_dir=self.out_dir + '/screenshots/originals/',
+                                   width=1920, height=1080,
+                                   wait=self.screenshot_delay)
         # if not success:
         #     # The original domain could not be screenshotted, therefore it is
         #     # impossible to do a comparison with any of its variations.
@@ -123,7 +129,11 @@ class DnsRazzle():
         return True
 
     def check_domain(self, domain_entry, progress_callback=None):
-        success = screenshot_domain(driver=self.driver, domain=domain_entry['domain-name'], out_dir=self.out_dir + '/screenshots/', width=1920, height=1080)
+        success = screenshot_domain(driver=self.driver,
+                                   domain=domain_entry['domain-name'],
+                                   out_dir=self.out_dir + '/screenshots/',
+                                   width=1920, height=1080,
+                                   wait=self.screenshot_delay)
         if success:
             original_png = self.out_dir + '/screenshots/originals/' + self.domain + '.png'
             if Path(original_png).is_file():

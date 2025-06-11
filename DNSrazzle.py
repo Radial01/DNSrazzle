@@ -83,6 +83,8 @@ def main():
     parser.add_argument('-u', '--useragent', type=str, metavar='STRING', default='Mozilla/5.0 dnsrazzle/%s' % __version__,
                         help='User-Agent STRING to send with HTTP requests. Default is Mozilla/5.0 dnsrazzle/%s)' % __version__)
     parser.add_argument('--debug', dest='debug', action='store_true', default=False, help='Print debug messages')
+    parser.add_argument('--screenshot-delay', dest='screenshot_delay', type=int, default=2,
+                        help='Seconds to wait after page load before taking a screenshot')
     arguments = parser.parse_args()
 
     out_dir = arguments.out_dir
@@ -93,6 +95,7 @@ def main():
     nameserver = arguments.nameserver
     nmap = arguments.nmap
     recon = arguments.recon
+    screenshot_delay = arguments.screenshot_delay
     email = arguments.email
     no_screenshot = arguments.no_screenshot
     driver = None
@@ -155,9 +158,10 @@ def main():
     razzles: list[DnsRazzle] = []
     bar = Bar(f'Generating possible domain name impersonations…', max=len(domain_raw_list))
     for entry in domain_raw_list:
-        razzle = DnsRazzle(domain=str(entry), out_dir=out_dir, tld=tld, dictionary=dictionary, file=arguments.file,
-                useragent=useragent, debug=debug, threads=threads, nmap=nmap, recon=recon, driver=driver,
-                nameserver=nameserver)
+        razzle = DnsRazzle(domain=str(entry), out_dir=out_dir, tld=tld, dictionary=dictionary,
+                file=arguments.file, useragent=useragent, debug=debug, threads=threads,
+                nmap=nmap, recon=recon, driver=driver, nameserver=nameserver,
+                screenshot_delay=screenshot_delay)
         razzles.append(razzle)
         razzle.generate_fuzzed_domains()
         bar.next()

@@ -132,7 +132,7 @@ def get_webdriver(browser_name):
             shutil.rmtree(temp_profile, ignore_errors=True)
         return None
 
-def screenshot_domain(driver, domain, out_dir, retries=1, width=1920, height=1080):
+def screenshot_domain(driver, domain, out_dir, retries=1, width=1920, height=1080, wait=2):
     """
     Function to take screenshot of supplied domain.
     It retries if a known error occurs (e.g. timeout or renderer issues).
@@ -164,9 +164,9 @@ def screenshot_domain(driver, domain, out_dir, retries=1, width=1920, height=108
 
     for attempt in range(retries + 1):
         try:
-            driver.set_page_load_timeout(15)
+            driver.set_page_load_timeout(30)
             driver.get(url)
-            WebDriverWait(driver, 10).until(
+            WebDriverWait(driver, 20).until(
                 lambda d: d.execute_script("return document.readyState") == "complete"
             )
 
@@ -179,6 +179,10 @@ def screenshot_domain(driver, domain, out_dir, retries=1, width=1920, height=108
                 )
             except TimeoutException:
                 pass
+
+            # Allow additional wait time for dynamic content to finish loading
+            if wait and wait > 0:
+                time.sleep(wait)
 
             try:
                 driver.set_window_size(width, height)
