@@ -67,9 +67,11 @@ DNSRazzle supports single domain names, a comma seperated list of domain names, 
     -t THREADS, --threads THREADS                     | Number of threads to use in permutation checks, reverse lookups, forward lookups, brute force and SRV record enumeration.
     
     --tld FILE                                        | Path to TLD dictionary file.
-  
+
     -u STRING, --useragent STRING                     | User-Agent STRING to send with HTTP requests (default: Mozilla/5.0 dnsrazzle/0.1.0)
-    
+
+    --screenshot-delay INT                            | Seconds to wait after page load before taking screenshot (default: 2)
+
     --debug                                           | Print debug messages
 
 
