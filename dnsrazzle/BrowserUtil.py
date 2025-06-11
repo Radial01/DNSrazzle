@@ -158,6 +158,29 @@ def screenshot_domain(driver, domain, out_dir, retries=1):
             WebDriverWait(driver, 10).until(
                 lambda d: d.execute_script("return document.readyState") == "complete"
             )
+
+            # Wait a bit longer for images or async content to finish loading
+            try:
+                WebDriverWait(driver, 5).until(
+                    lambda d: d.execute_script(
+                        "return Array.from(document.images).every(img => img.complete)"
+                    )
+                )
+            except TimeoutException:
+                pass
+
+            try:
+                # Resize the browser to match the full page height/width
+                page_height = driver.execute_script(
+                    "return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);"
+                )
+                page_width = driver.execute_script(
+                    "return Math.max(document.body.scrollWidth, document.documentElement.scrollWidth);"
+                )
+                driver.set_window_size(page_width, page_height)
+                time.sleep(1)
+            except WebDriverException:
+                pass
             driver.get_screenshot_as_file(ss_path)
             return True
 
