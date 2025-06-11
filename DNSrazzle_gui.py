@@ -62,6 +62,10 @@ class DNSRazzleGUI(tk.Tk):
 
         ttk.Button(frm, text="Run", command=self.run_dnsrazzle).grid(row=9, column=0, pady=5)
 
+        # Status indicator showing whether DNSRazzle is running
+        self.status_var = tk.StringVar(value="Idle")
+        ttk.Label(frm, textvariable=self.status_var).grid(row=9, column=1, sticky=tk.W)
+
         self.output_text = ScrolledText(self, height=15)
         self.output_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
 
@@ -102,7 +106,11 @@ class DNSRazzleGUI(tk.Tk):
 
         if not self.domain_var.get() and not self.file_var.get():
             messagebox.showerror("Error", "Please enter a domain or select a file")
+            self.status_var.set("Idle")
             return
+
+        # Update status indicator
+        self.status_var.set("Running...")
 
         self.output_text.delete(1.0, tk.END)
 
@@ -115,6 +123,8 @@ class DNSRazzleGUI(tk.Tk):
                 # Tkinter is not thread safe; queue UI updates on the main thread
                 self.output_text.after(0, _append_output, line)
             proc.wait()
+            # Update status when process finishes
+            self.output_text.after(0, self.status_var.set, "Done")
 
         proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         threading.Thread(target=read_output, args=(proc,), daemon=True).start()
