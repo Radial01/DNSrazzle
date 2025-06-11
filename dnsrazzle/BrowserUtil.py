@@ -169,18 +169,6 @@ def screenshot_domain(driver, domain, out_dir, retries=1):
             except TimeoutException:
                 pass
 
-            try:
-                # Resize the browser to match the full page height/width
-                page_height = driver.execute_script(
-                    "return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);"
-                )
-                page_width = driver.execute_script(
-                    "return Math.max(document.body.scrollWidth, document.documentElement.scrollWidth);"
-                )
-                driver.set_window_size(page_width, page_height)
-                time.sleep(1)
-            except WebDriverException:
-                pass
             driver.get_screenshot_as_file(ss_path)
             return True
 
