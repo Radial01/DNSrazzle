@@ -1,198 +1,177 @@
+from __future__ import annotations
 import os
 import sys
-import subprocess
-import threading
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
-from tkinter.scrolledtext import ScrolledText
+from typing import List, Set
+from PyQt5 import QtCore, QtGui, QtWidgets
 
-class DNSRazzleGUI(tk.Tk):
-    def __init__(self):
+
+class DNSRazzleGUI(QtWidgets.QWidget):
+    def __init__(self) -> None:
         super().__init__()
-        self.title("DNSRazzle GUI")
-        self.geometry("700x500")
-        self.create_widgets()
-        self.screenshot_win = None
-        self.screenshot_frame = None
-        self.screenshot_images = []
-        self.displayed_files = set()
+        self.setWindowTitle("DNSRazzle GUI")
+        self.resize(700, 500)
+        self.screenshot_window: QtWidgets.QScrollArea | None = None
+        self.screenshot_layout: QtWidgets.QVBoxLayout | None = None
+        self.screenshot_images: List[QtGui.QPixmap] = []
+        self.displayed_files: Set[str] = set()
+        self.process = QtCore.QProcess(self)
+        self.process.readyReadStandardOutput.connect(self._read_output)
+        self.process.readyReadStandardError.connect(self._read_output)
+        self.process.finished.connect(lambda *_: self.status_label.setText("Done"))
+        self._create_widgets()
 
-    def create_widgets(self):
-        frm = ttk.Frame(self)
-        frm.pack(fill=tk.X, padx=10, pady=5)
+    def _create_widgets(self) -> None:
+        form = QtWidgets.QFormLayout()
+        self.domain_edit = QtWidgets.QLineEdit()
+        form.addRow("Domain(s)", self.domain_edit)
 
-        ttk.Label(frm, text="Domain(s)").grid(row=0, column=0, sticky=tk.W)
-        self.domain_var = tk.StringVar()
-        ttk.Entry(frm, textvariable=self.domain_var, width=40).grid(row=0, column=1, sticky=tk.W)
+        self.file_edit = QtWidgets.QLineEdit()
+        browse_file = QtWidgets.QPushButton("Browse")
+        browse_file.clicked.connect(self.browse_file)
+        file_layout = QtWidgets.QHBoxLayout()
+        file_layout.addWidget(self.file_edit)
+        file_layout.addWidget(browse_file)
+        form.addRow("Domain list file", file_layout)
 
-        ttk.Label(frm, text="Domain list file").grid(row=1, column=0, sticky=tk.W)
-        self.file_var = tk.StringVar()
-        entry_file = ttk.Entry(frm, textvariable=self.file_var, width=35)
-        entry_file.grid(row=1, column=1, sticky=tk.W)
-        ttk.Button(frm, text="Browse", command=self.browse_file).grid(row=1, column=2)
+        self.out_edit = QtWidgets.QLineEdit()
+        browse_out = QtWidgets.QPushButton("Browse")
+        browse_out.clicked.connect(self.browse_out)
+        out_layout = QtWidgets.QHBoxLayout()
+        out_layout.addWidget(self.out_edit)
+        out_layout.addWidget(browse_out)
+        form.addRow("Output directory", out_layout)
 
-        ttk.Label(frm, text="Output directory").grid(row=2, column=0, sticky=tk.W)
-        self.out_var = tk.StringVar()
-        entry_out = ttk.Entry(frm, textvariable=self.out_var, width=35)
-        entry_out.grid(row=2, column=1, sticky=tk.W)
-        ttk.Button(frm, text="Browse", command=self.browse_out).grid(row=2, column=2)
+        self.browser_combo = QtWidgets.QComboBox()
+        self.browser_combo.addItems(["chrome", "firefox"])
+        form.addRow("Browser", self.browser_combo)
 
-        ttk.Label(frm, text="Browser").grid(row=3, column=0, sticky=tk.W)
-        self.browser_var = tk.StringVar(value="chrome")
-        ttk.Combobox(frm, textvariable=self.browser_var, values=["chrome", "firefox"], width=10).grid(row=3, column=1, sticky=tk.W)
+        self.threads_edit = QtWidgets.QLineEdit("10")
+        form.addRow("Threads", self.threads_edit)
 
-        ttk.Label(frm, text="Threads").grid(row=4, column=0, sticky=tk.W)
-        self.threads_var = tk.StringVar(value="10")
-        ttk.Entry(frm, textvariable=self.threads_var, width=5).grid(row=4, column=1, sticky=tk.W)
+        self.delay_edit = QtWidgets.QLineEdit("2")
+        form.addRow("Screenshot delay", self.delay_edit)
 
-        ttk.Label(frm, text="Screenshot delay").grid(row=5, column=0, sticky=tk.W)
-        self.sdelay_var = tk.StringVar(value="2")
-        ttk.Entry(frm, textvariable=self.sdelay_var, width=5).grid(row=5, column=1, sticky=tk.W)
+        self.nmap_check = QtWidgets.QCheckBox("Run nmap")
+        self.recon_check = QtWidgets.QCheckBox("Run dnsrecon")
+        self.noss_check = QtWidgets.QCheckBox("No screenshots")
+        self.generate_check = QtWidgets.QCheckBox("Generate only")
+        self.debug_check = QtWidgets.QCheckBox("Debug")
+        checks = QtWidgets.QGridLayout()
+        checks.addWidget(self.nmap_check, 0, 0)
+        checks.addWidget(self.recon_check, 0, 1)
+        checks.addWidget(self.noss_check, 1, 0)
+        checks.addWidget(self.generate_check, 1, 1)
+        checks.addWidget(self.debug_check, 2, 0)
+        form.addRow(checks)
 
-        self.nmap_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(frm, text="Run nmap", variable=self.nmap_var).grid(row=6, column=0, sticky=tk.W)
+        self.run_button = QtWidgets.QPushButton("Run")
+        self.run_button.clicked.connect(self.run_dnsrazzle)
+        self.status_label = QtWidgets.QLabel("Idle")
+        run_layout = QtWidgets.QHBoxLayout()
+        run_layout.addWidget(self.run_button)
+        run_layout.addWidget(self.status_label)
+        form.addRow(run_layout)
 
-        self.recon_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(frm, text="Run dnsrecon", variable=self.recon_var).grid(row=6, column=1, sticky=tk.W)
+        self.output_text = QtWidgets.QPlainTextEdit()
+        self.output_text.setReadOnly(True)
 
-        self.noss_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(frm, text="No screenshots", variable=self.noss_var).grid(row=7, column=0, sticky=tk.W)
+        main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.addLayout(form)
+        main_layout.addWidget(self.output_text)
 
-        self.generate_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(frm, text="Generate only", variable=self.generate_var).grid(row=7, column=1, sticky=tk.W)
+    def browse_file(self) -> None:
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select file")
+        if path:
+            self.file_edit.setText(path)
 
-        self.debug_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(frm, text="Debug", variable=self.debug_var).grid(row=8, column=0, sticky=tk.W)
+    def browse_out(self) -> None:
+        path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select directory")
+        if path:
+            self.out_edit.setText(path)
 
-        ttk.Button(frm, text="Run", command=self.run_dnsrazzle).grid(row=9, column=0, pady=5)
-
-        # Status indicator showing whether DNSRazzle is running
-        self.status_var = tk.StringVar(value="Idle")
-        ttk.Label(frm, textvariable=self.status_var).grid(row=9, column=1, sticky=tk.W)
-
-        self.output_text = ScrolledText(self, height=15)
-        self.output_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-    def browse_file(self):
-        filename = filedialog.askopenfilename()
-        if filename:
-            self.file_var.set(filename)
-
-    def browse_out(self):
-        dirname = filedialog.askdirectory()
-        if dirname:
-            self.out_var.set(dirname)
-
-    def show_screenshot_window(self):
-        if self.screenshot_win and self.screenshot_win.winfo_exists():
+    def show_screenshot_window(self) -> None:
+        if self.screenshot_window and self.screenshot_window.isVisible():
             return
-        self.screenshot_win = tk.Toplevel(self)
-        self.screenshot_win.title("Screenshots")
-        canvas = tk.Canvas(self.screenshot_win)
-        scrollbar = ttk.Scrollbar(self.screenshot_win, orient="vertical", command=canvas.yview)
-        canvas.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.screenshot_frame = ttk.Frame(canvas)
-        canvas.create_window((0, 0), window=self.screenshot_frame, anchor="nw")
-        self.screenshot_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
-        )
-        self.after(1000, self.update_screenshots)
+        self.screenshot_window = QtWidgets.QScrollArea()
+        self.screenshot_window.setWindowTitle("Screenshots")
+        container = QtWidgets.QWidget()
+        self.screenshot_layout = QtWidgets.QVBoxLayout(container)
+        self.screenshot_window.setWidget(container)
+        self.screenshot_window.setWidgetResizable(True)
+        self.screenshot_window.show()
+        QtCore.QTimer.singleShot(1000, self.update_screenshots)
 
-    def update_screenshots(self):
-        if not (self.screenshot_win and self.screenshot_win.winfo_exists()):
+    def update_screenshots(self) -> None:
+        if not (self.screenshot_window and self.screenshot_window.isVisible()):
             return
-        ss_dir = os.path.join(self.out_var.get(), "screenshots")
+        ss_dir = os.path.join(self.out_edit.text(), "screenshots")
         if os.path.isdir(ss_dir):
             for fname in sorted(os.listdir(ss_dir)):
                 if fname.endswith(".png") and fname not in self.displayed_files:
                     path = os.path.join(ss_dir, fname)
-                    try:
-                        img = tk.PhotoImage(file=path)
-                    except tk.TclError:
-                        continue
-                    lbl = ttk.Label(self.screenshot_frame, image=img, text=fname, compound="top")
-                    lbl.image = img
-                    lbl.pack(padx=5, pady=5)
-                    self.screenshot_images.append(img)
-                    self.displayed_files.add(fname)
-        self.after(2000, self.update_screenshots)
+                    pix = QtGui.QPixmap(path)
+                    if not pix.isNull():
+                        lbl = QtWidgets.QLabel()
+                        lbl.setPixmap(pix)
+                        lbl.setAlignment(QtCore.Qt.AlignHCenter)
+                        lbl.setToolTip(fname)
+                        self.screenshot_layout.addWidget(lbl)
+                        self.screenshot_images.append(pix)
+                        self.displayed_files.add(fname)
+        QtCore.QTimer.singleShot(2000, self.update_screenshots)
 
-    def run_dnsrazzle(self):
+    def _read_output(self) -> None:
+        data = self.process.readAllStandardOutput().data().decode()
+        if data:
+            self.output_text.appendPlainText(data)
+            self.output_text.verticalScrollBar().setValue(self.output_text.verticalScrollBar().maximum())
+
+    def run_dnsrazzle(self) -> None:
         args = [sys.executable, "-u", os.path.join(os.path.dirname(__file__), "DNSrazzle.py")]
-        if self.domain_var.get():
-            args += ["-d", self.domain_var.get()]
-        if self.file_var.get():
-            args += ["-f", self.file_var.get()]
-        if self.out_var.get():
-            args += ["-o", self.out_var.get()]
-        if self.browser_var.get() and self.browser_var.get() != "chrome":
-            args += ["--browser", self.browser_var.get()]
-        if self.threads_var.get():
-            args += ["-t", self.threads_var.get()]
-        if self.sdelay_var.get():
-            args += ["--screenshot-delay", self.sdelay_var.get()]
-        if self.nmap_var.get():
+        if self.domain_edit.text():
+            args += ["-d", self.domain_edit.text()]
+        if self.file_edit.text():
+            args += ["-f", self.file_edit.text()]
+        if self.out_edit.text():
+            args += ["-o", self.out_edit.text()]
+        if self.browser_combo.currentText() != "chrome":
+            args += ["--browser", self.browser_combo.currentText()]
+        if self.threads_edit.text():
+            args += ["-t", self.threads_edit.text()]
+        if self.delay_edit.text():
+            args += ["--screenshot-delay", self.delay_edit.text()]
+        if self.nmap_check.isChecked():
             args += ["-n"]
-        if self.recon_var.get():
+        if self.recon_check.isChecked():
             args += ["-r"]
-        if self.noss_var.get():
+        if self.noss_check.isChecked():
             args += ["--noss"]
-        if self.generate_var.get():
+        if self.generate_check.isChecked():
             args += ["-g"]
-        if self.debug_var.get():
+        if self.debug_check.isChecked():
             args += ["--debug"]
 
-        if not self.domain_var.get() and not self.file_var.get():
-            messagebox.showerror("Error", "Please enter a domain or select a file")
-            self.status_var.set("Idle")
+        if not self.domain_edit.text() and not self.file_edit.text():
+            QtWidgets.QMessageBox.critical(self, "Error", "Please enter a domain or select a file")
+            self.status_label.setText("Idle")
             return
 
-        # Update status indicator
-        self.status_var.set("Running...")
+        self.status_label.setText("Running...")
         self.show_screenshot_window()
+        self.output_text.clear()
+        self.process.start(args[0], args[1:])
 
-        self.output_text.delete(1.0, tk.END)
-
-        def _append_output(line):
-            self.output_text.insert(tk.END, line)
-            self.output_text.see(tk.END)
-            self.output_text.update_idletasks()
-
-        def read_output(proc):
-            while True:
-                chunk = proc.stdout.read(1)
-                if chunk == "" and proc.poll() is not None:
-                    break
-                if chunk:
-                    # Tkinter is not thread safe; queue UI updates on the main thread
-                    self.output_text.after(0, _append_output, chunk)
-            proc.wait()
-            # Update status when process finishes
-            self.output_text.after(0, self.status_var.set, "Done")
-
-        def check_process():
-            if proc.poll() is None:
-                self.after(1000, check_process)
-            else:
-                self.status_var.set("Done")
-
-        proc = subprocess.Popen(
-            args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-        )
-        threading.Thread(target=read_output, args=(proc,), daemon=True).start()
-        self.after(1000, check_process)
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        if self.process.state() == QtCore.QProcess.Running:
+            self.process.kill()
+        event.accept()
 
 
-def main():
-    app = DNSRazzleGUI()
-    app.mainloop()
+def main() -> None:
+    app = QtWidgets.QApplication(sys.argv)
+    gui = DNSRazzleGUI()
+    gui.show()
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
