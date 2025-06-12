@@ -42,7 +42,7 @@ DNSRazzle supports single domain names, a comma seperated list of domain names, 
 ```$ python3 DNSRazzle.py -d acme.com -o outdir```
 
 ## Graphical user interface
-You can also start DNSRazzle using a basic Tkinter based interface. Run
+DNSRazzle also provides a small PyQt5 based interface. Run
 ```bash
 python3 DNSrazzle_gui.py
 ```
